@@ -30,18 +30,23 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     if debug: printstate(S, "initial value:")
 
     ascon_permutation(S, a)
-    if debug: printstate(S, "initialization:")
+    # printstate(S[::-1], "initialization:")
 
     # Message Processing (Absorbing)
     m_padding = to_bytes([0x80]) + zero_bytes(rate - (len(message) % rate) - 1)
     m_padded = message + m_padding
-
+    # print("message padded :",end='')
+    # print (''.join('{:02x}'.format(x) for x in m_padded))
     # first s-1 blocks
     for block in range(0, len(m_padded) - rate, rate):
+        # print("S[0]: " + hex(S[0]))
+        # print("Xoredwith :" + hex(bytes_to_int(m_padded[block:block+8])))
         S[0] ^= bytes_to_int(m_padded[block:block+8])  # rate=8
         ascon_permutation(S, b)
     # last block
     block = len(m_padded) - rate
+    # print("S[0]: " + hex(S[0]))
+    # print("Xoredwith :" + hex(bytes_to_int(m_padded[block:block+8])))
     S[0] ^= bytes_to_int(m_padded[block:block+8])  # rate=8
     if debug: printstate(S, "process message:")
 
@@ -392,7 +397,17 @@ def demo_hash(variant="Ascon-Hash", hashlength=32):
 
     demo_print([("message", message), ("tag", tag)])
 
+import random
 
+random.seed(0)
 if __name__ == "__main__":
-    demo_aead("Ascon-128")
-    demo_hash("Ascon-Hash")
+    #print(ascon_hash(int_to_bytes(0,16)))
+    inputs,outputs=[],[]
+    for i in range (0,10):
+        in_=random.randint(0,1<<64)
+        inputs+=[hex(in_)]
+        s=''.join('{:02x}'.format(x) for x in ascon_hash(int_to_bytes(in_,16))[:16])
+        outputs+=[s]
+
+    print(inputs)
+    print(outputs)
