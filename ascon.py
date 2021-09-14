@@ -59,7 +59,45 @@ def ascon_hash(message, variant="Ascon-Hash", hashlength=32):
     if debug: printstate(S, "finalization:")
     return H[:hashlength]
 
+def ascon_hash128(message, variant="Ascon-Hash", hashlength=32): 
+    """
+    Ascon hash function and extendable-output function.
+    message: a bytes object of arbitrary length
+    variant: "Ascon-Hash", "Ascon-Hasha" (both with 256-bit output for 128-bit security), "Ascon-Xof", or "Ascon-Xofa" (both with arbitrary output length, security=min(128, bitlen/2))
+    hashlength: the requested output bytelength (must be 32 for variant "Ascon-Hash"; can be arbitrary for Ascon-Xof, but should be >= 32 for 128-bit security)
+    returns a bytes object containing the hash tag
+    """
+    a = 12   # rounds
+    b = a
+    rate = 8*2 # bytes
 
+    # Initialization
+    tagspec = int_to_bytes(256 if variant in ["Ascon-Hash", "Ascon-Hasha"] else 0, 4)
+    S = bytes_to_state(to_bytes([0, rate * 8, a, a-b]) + tagspec + zero_bytes(32))
+    if debug: printstate(S, "initial value:")
+
+    ascon_permutation(S, a)
+    # printstate(S, "initial value:")
+    # printstate(S[::-1], "initialization:")
+
+    m_padded = message #+ m_padding
+  
+  
+    block = len(m_padded) - rate
+    S[0] ^= bytes_to_int(m_padded[block:block+rate])  # rate=8
+   
+
+    # Finalization (Squeezing)
+    H = b""
+    printstate(S[::-1], "sin")
+    ascon_permutation(S, a)
+    printstate(S, "process message:")
+    S=S[::-1]
+    while len(H) < hashlength:
+        H += int_to_bytes(S[0], 8)+int_to_bytes(S[1], 8)  # rate=8
+        ascon_permutation(S, b)
+    if debug: printstate(S, "finalization:")
+    return H[:hashlength]
 # === Ascon AEAD encryption and decryption ===
 
 def ascon_encrypt(key, nonce, associateddata, plaintext, variant="Ascon-128"): 
@@ -406,7 +444,7 @@ if __name__ == "__main__":
     for i in range (0,10):
         in_=random.randint(0,1<<64)
         inputs+=[hex(in_)]
-        s=''.join('{:02x}'.format(x) for x in ascon_hash(int_to_bytes(in_,16))[:16])
+        s=''.join('{:02x}'.format(x) for x in ascon_hash128(int_to_bytes(in_,16))[:16])
         outputs+=[s]
 
     print(inputs)
